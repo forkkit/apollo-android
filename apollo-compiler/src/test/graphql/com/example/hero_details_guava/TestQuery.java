@@ -8,13 +8,19 @@ package com.example.hero_details_guava;
 import com.apollographql.apollo.api.Operation;
 import com.apollographql.apollo.api.OperationName;
 import com.apollographql.apollo.api.Query;
+import com.apollographql.apollo.api.Response;
 import com.apollographql.apollo.api.ResponseField;
-import com.apollographql.apollo.api.ResponseFieldMapper;
-import com.apollographql.apollo.api.ResponseFieldMarshaller;
-import com.apollographql.apollo.api.ResponseReader;
-import com.apollographql.apollo.api.ResponseWriter;
+import com.apollographql.apollo.api.ScalarTypeAdapters;
+import com.apollographql.apollo.api.internal.OperationRequestBodyComposer;
+import com.apollographql.apollo.api.internal.QueryDocumentMinifier;
+import com.apollographql.apollo.api.internal.ResponseFieldMapper;
+import com.apollographql.apollo.api.internal.ResponseFieldMarshaller;
+import com.apollographql.apollo.api.internal.ResponseReader;
+import com.apollographql.apollo.api.internal.ResponseWriter;
+import com.apollographql.apollo.api.internal.SimpleOperationResponseParser;
 import com.apollographql.apollo.api.internal.Utils;
 import com.google.common.base.Optional;
+import java.io.IOException;
 import java.lang.Integer;
 import java.lang.Object;
 import java.lang.Override;
@@ -22,29 +28,34 @@ import java.lang.String;
 import java.lang.SuppressWarnings;
 import java.util.Collections;
 import java.util.List;
+import okio.Buffer;
+import okio.BufferedSource;
+import okio.ByteString;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
 
 public final class TestQuery implements Query<TestQuery.Data, Optional<TestQuery.Data>, Operation.Variables> {
-  public static final String OPERATION_ID = "0751f7502f83c24c778f90fc8719a3b8f2db547711d3d0a8ec82588c549f2960";
+  public static final String OPERATION_ID = "6298efc5535c4a084ea32f95e9be418d8539c852ce96af37110175be4ceed09b";
 
-  public static final String QUERY_DOCUMENT = "query TestQuery {\n"
-      + "  hero {\n"
-      + "    __typename\n"
-      + "    name\n"
-      + "    friendsConnection {\n"
-      + "      __typename\n"
-      + "      totalCount\n"
-      + "      edges {\n"
-      + "        __typename\n"
-      + "        node {\n"
-      + "          __typename\n"
-      + "          name\n"
-      + "        }\n"
-      + "      }\n"
-      + "    }\n"
-      + "  }\n"
-      + "}";
+  public static final String QUERY_DOCUMENT = QueryDocumentMinifier.minify(
+    "query TestQuery {\n"
+        + "  hero {\n"
+        + "    __typename\n"
+        + "    name\n"
+        + "    friendsConnection {\n"
+        + "      __typename\n"
+        + "      totalCount\n"
+        + "      edges {\n"
+        + "        __typename\n"
+        + "        node {\n"
+        + "          __typename\n"
+        + "          name\n"
+        + "        }\n"
+        + "      }\n"
+        + "    }\n"
+        + "  }\n"
+        + "}"
+  );
 
   public static final OperationName OPERATION_NAME = new OperationName() {
     @Override
@@ -93,6 +104,53 @@ public final class TestQuery implements Query<TestQuery.Data, Optional<TestQuery
     return OPERATION_NAME;
   }
 
+  @Override
+  @NotNull
+  public Response<Optional<TestQuery.Data>> parse(@NotNull final BufferedSource source,
+      @NotNull final ScalarTypeAdapters scalarTypeAdapters) throws IOException {
+    return SimpleOperationResponseParser.parse(source, this, scalarTypeAdapters);
+  }
+
+  @Override
+  @NotNull
+  public Response<Optional<TestQuery.Data>> parse(@NotNull final ByteString byteString,
+      @NotNull final ScalarTypeAdapters scalarTypeAdapters) throws IOException {
+    return parse(new Buffer().write(byteString), scalarTypeAdapters);
+  }
+
+  @Override
+  @NotNull
+  public Response<Optional<TestQuery.Data>> parse(@NotNull final BufferedSource source) throws
+      IOException {
+    return parse(source, ScalarTypeAdapters.DEFAULT);
+  }
+
+  @Override
+  @NotNull
+  public Response<Optional<TestQuery.Data>> parse(@NotNull final ByteString byteString) throws
+      IOException {
+    return parse(byteString, ScalarTypeAdapters.DEFAULT);
+  }
+
+  @Override
+  @NotNull
+  public ByteString composeRequestBody(@NotNull final ScalarTypeAdapters scalarTypeAdapters) {
+    return OperationRequestBodyComposer.compose(this, false, true, scalarTypeAdapters);
+  }
+
+  @NotNull
+  @Override
+  public ByteString composeRequestBody() {
+    return OperationRequestBodyComposer.compose(this, false, true, ScalarTypeAdapters.DEFAULT);
+  }
+
+  @Override
+  @NotNull
+  public ByteString composeRequestBody(final boolean autoPersistQueries,
+      final boolean withQueryDocument, @NotNull final ScalarTypeAdapters scalarTypeAdapters) {
+    return OperationRequestBodyComposer.compose(this, autoPersistQueries, withQueryDocument, scalarTypeAdapters);
+  }
+
   public static final class Builder {
     Builder() {
     }
@@ -102,6 +160,9 @@ public final class TestQuery implements Query<TestQuery.Data, Optional<TestQuery
     }
   }
 
+  /**
+   * Data from the response after executing this GraphQL operation
+   */
   public static class Data implements Operation.Data {
     static final ResponseField[] $responseFields = {
       ResponseField.forObject("hero", "hero", null, true, Collections.<ResponseField.Condition>emptyList())
@@ -123,7 +184,7 @@ public final class TestQuery implements Query<TestQuery.Data, Optional<TestQuery
       return this.hero;
     }
 
-    @SuppressWarnings("unchecked")
+    @SuppressWarnings({"rawtypes", "unchecked"})
     public ResponseFieldMarshaller marshaller() {
       return new ResponseFieldMarshaller() {
         @Override
@@ -183,6 +244,9 @@ public final class TestQuery implements Query<TestQuery.Data, Optional<TestQuery
     }
   }
 
+  /**
+   * A character from the Star Wars universe
+   */
   public static class Hero {
     static final ResponseField[] $responseFields = {
       ResponseField.forString("__typename", "__typename", null, false, Collections.<ResponseField.Condition>emptyList()),
@@ -227,7 +291,7 @@ public final class TestQuery implements Query<TestQuery.Data, Optional<TestQuery
       return this.friendsConnection;
     }
 
-    @SuppressWarnings("unchecked")
+    @SuppressWarnings({"rawtypes", "unchecked"})
     public ResponseFieldMarshaller marshaller() {
       return new ResponseFieldMarshaller() {
         @Override
@@ -299,6 +363,9 @@ public final class TestQuery implements Query<TestQuery.Data, Optional<TestQuery
     }
   }
 
+  /**
+   * A connection object for a character's friends
+   */
   public static class FriendsConnection {
     static final ResponseField[] $responseFields = {
       ResponseField.forString("__typename", "__typename", null, false, Collections.<ResponseField.Condition>emptyList()),
@@ -343,7 +410,7 @@ public final class TestQuery implements Query<TestQuery.Data, Optional<TestQuery
       return this.edges;
     }
 
-    @SuppressWarnings("unchecked")
+    @SuppressWarnings({"rawtypes", "unchecked"})
     public ResponseFieldMarshaller marshaller() {
       return new ResponseFieldMarshaller() {
         @Override
@@ -427,6 +494,9 @@ public final class TestQuery implements Query<TestQuery.Data, Optional<TestQuery
     }
   }
 
+  /**
+   * An edge object for a character's friends
+   */
   public static class Edge {
     static final ResponseField[] $responseFields = {
       ResponseField.forString("__typename", "__typename", null, false, Collections.<ResponseField.Condition>emptyList()),
@@ -459,7 +529,7 @@ public final class TestQuery implements Query<TestQuery.Data, Optional<TestQuery
       return this.node;
     }
 
-    @SuppressWarnings("unchecked")
+    @SuppressWarnings({"rawtypes", "unchecked"})
     public ResponseFieldMarshaller marshaller() {
       return new ResponseFieldMarshaller() {
         @Override
@@ -525,6 +595,9 @@ public final class TestQuery implements Query<TestQuery.Data, Optional<TestQuery
     }
   }
 
+  /**
+   * A character from the Star Wars universe
+   */
   public static class Node {
     static final ResponseField[] $responseFields = {
       ResponseField.forString("__typename", "__typename", null, false, Collections.<ResponseField.Condition>emptyList()),
@@ -557,7 +630,7 @@ public final class TestQuery implements Query<TestQuery.Data, Optional<TestQuery
       return this.name;
     }
 
-    @SuppressWarnings("unchecked")
+    @SuppressWarnings({"rawtypes", "unchecked"})
     public ResponseFieldMarshaller marshaller() {
       return new ResponseFieldMarshaller() {
         @Override

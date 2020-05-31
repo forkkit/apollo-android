@@ -6,9 +6,9 @@
     "serve": "gatsby serve"
   },
   "dependencies": {
-    "gatsby": "2.16.5",
-    "gatsby-theme-apollo-docs": "2.3.11",
-    "react": "16.10.2",
-    "react-dom": "16.10.2"
+    "gatsby": "2.22.15",
+    "gatsby-theme-apollo-docs": "4.2.3",
+    "react": "16.13.1",
+    "react-dom": "16.13.1"
   }
 }

@@ -5,19 +5,24 @@
 //
 package com.example.unique_type_name;
 
-import com.apollographql.apollo.api.FragmentResponseFieldMapper;
 import com.apollographql.apollo.api.Operation;
 import com.apollographql.apollo.api.OperationName;
 import com.apollographql.apollo.api.Query;
+import com.apollographql.apollo.api.Response;
 import com.apollographql.apollo.api.ResponseField;
-import com.apollographql.apollo.api.ResponseFieldMapper;
-import com.apollographql.apollo.api.ResponseFieldMarshaller;
-import com.apollographql.apollo.api.ResponseReader;
-import com.apollographql.apollo.api.ResponseWriter;
+import com.apollographql.apollo.api.ScalarTypeAdapters;
+import com.apollographql.apollo.api.internal.OperationRequestBodyComposer;
 import com.apollographql.apollo.api.internal.Optional;
+import com.apollographql.apollo.api.internal.QueryDocumentMinifier;
+import com.apollographql.apollo.api.internal.ResponseFieldMapper;
+import com.apollographql.apollo.api.internal.ResponseFieldMarshaller;
+import com.apollographql.apollo.api.internal.ResponseReader;
+import com.apollographql.apollo.api.internal.ResponseWriter;
+import com.apollographql.apollo.api.internal.SimpleOperationResponseParser;
 import com.apollographql.apollo.api.internal.Utils;
 import com.example.unique_type_name.fragment.HeroDetails;
 import com.example.unique_type_name.type.Episode;
+import java.io.IOException;
 import java.lang.Double;
 import java.lang.Object;
 import java.lang.Override;
@@ -26,48 +31,53 @@ import java.lang.SuppressWarnings;
 import java.util.Arrays;
 import java.util.Collections;
 import java.util.List;
+import okio.Buffer;
+import okio.BufferedSource;
+import okio.ByteString;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
 
 public final class HeroDetailQuery implements Query<HeroDetailQuery.Data, Optional<HeroDetailQuery.Data>, Operation.Variables> {
-  public static final String OPERATION_ID = "fbc3185d6cccc75f6ec4858073e261143cd085f47b6701080316e36cc970145a";
+  public static final String OPERATION_ID = "11473383397766137d7923128dd8cd6f27fcab32df9d9c091f08cf12a893a556";
 
-  public static final String QUERY_DOCUMENT = "query HeroDetailQuery {\n"
-      + "  heroDetailQuery {\n"
-      + "    __typename\n"
-      + "    name\n"
-      + "    friends {\n"
-      + "      __typename\n"
-      + "      name\n"
-      + "    }\n"
-      + "    ... on Human {\n"
-      + "      height\n"
-      + "      friends {\n"
-      + "        __typename\n"
-      + "        appearsIn\n"
-      + "        friends {\n"
-      + "          __typename\n"
-      + "          ...HeroDetails\n"
-      + "        }\n"
-      + "      }\n"
-      + "    }\n"
-      + "  }\n"
-      + "}\n"
-      + "fragment HeroDetails on Character {\n"
-      + "  __typename\n"
-      + "  name\n"
-      + "  friendsConnection {\n"
-      + "    __typename\n"
-      + "    totalCount\n"
-      + "    edges {\n"
-      + "      __typename\n"
-      + "      node {\n"
-      + "        __typename\n"
-      + "        name\n"
-      + "      }\n"
-      + "    }\n"
-      + "  }\n"
-      + "}";
+  public static final String QUERY_DOCUMENT = QueryDocumentMinifier.minify(
+    "query HeroDetailQuery {\n"
+        + "  heroDetailQuery {\n"
+        + "    __typename\n"
+        + "    name\n"
+        + "    friends {\n"
+        + "      __typename\n"
+        + "      name\n"
+        + "    }\n"
+        + "    ... on Human {\n"
+        + "      height\n"
+        + "      friends {\n"
+        + "        __typename\n"
+        + "        appearsIn\n"
+        + "        friends {\n"
+        + "          __typename\n"
+        + "          ...HeroDetails\n"
+        + "        }\n"
+        + "      }\n"
+        + "    }\n"
+        + "  }\n"
+        + "}\n"
+        + "fragment HeroDetails on Character {\n"
+        + "  __typename\n"
+        + "  name\n"
+        + "  friendsConnection {\n"
+        + "    __typename\n"
+        + "    totalCount\n"
+        + "    edges {\n"
+        + "      __typename\n"
+        + "      node {\n"
+        + "        __typename\n"
+        + "        name\n"
+        + "      }\n"
+        + "    }\n"
+        + "  }\n"
+        + "}"
+  );
 
   public static final OperationName OPERATION_NAME = new OperationName() {
     @Override
@@ -116,6 +126,53 @@ public final class HeroDetailQuery implements Query<HeroDetailQuery.Data, Option
     return OPERATION_NAME;
   }
 
+  @Override
+  @NotNull
+  public Response<Optional<HeroDetailQuery.Data>> parse(@NotNull final BufferedSource source,
+      @NotNull final ScalarTypeAdapters scalarTypeAdapters) throws IOException {
+    return SimpleOperationResponseParser.parse(source, this, scalarTypeAdapters);
+  }
+
+  @Override
+  @NotNull
+  public Response<Optional<HeroDetailQuery.Data>> parse(@NotNull final ByteString byteString,
+      @NotNull final ScalarTypeAdapters scalarTypeAdapters) throws IOException {
+    return parse(new Buffer().write(byteString), scalarTypeAdapters);
+  }
+
+  @Override
+  @NotNull
+  public Response<Optional<HeroDetailQuery.Data>> parse(@NotNull final BufferedSource source) throws
+      IOException {
+    return parse(source, ScalarTypeAdapters.DEFAULT);
+  }
+
+  @Override
+  @NotNull
+  public Response<Optional<HeroDetailQuery.Data>> parse(@NotNull final ByteString byteString) throws
+      IOException {
+    return parse(byteString, ScalarTypeAdapters.DEFAULT);
+  }
+
+  @Override
+  @NotNull
+  public ByteString composeRequestBody(@NotNull final ScalarTypeAdapters scalarTypeAdapters) {
+    return OperationRequestBodyComposer.compose(this, false, true, scalarTypeAdapters);
+  }
+
+  @NotNull
+  @Override
+  public ByteString composeRequestBody() {
+    return OperationRequestBodyComposer.compose(this, false, true, ScalarTypeAdapters.DEFAULT);
+  }
+
+  @Override
+  @NotNull
+  public ByteString composeRequestBody(final boolean autoPersistQueries,
+      final boolean withQueryDocument, @NotNull final ScalarTypeAdapters scalarTypeAdapters) {
+    return OperationRequestBodyComposer.compose(this, autoPersistQueries, withQueryDocument, scalarTypeAdapters);
+  }
+
   public static final class Builder {
     Builder() {
     }
@@ -125,6 +182,9 @@ public final class HeroDetailQuery implements Query<HeroDetailQuery.Data, Option
     }
   }
 
+  /**
+   * Data from the response after executing this GraphQL operation
+   */
   public static class Data implements Operation.Data {
     static final ResponseField[] $responseFields = {
       ResponseField.forObject("heroDetailQuery", "heroDetailQuery", null, true, Collections.<ResponseField.Condition>emptyList())
@@ -146,7 +206,7 @@ public final class HeroDetailQuery implements Query<HeroDetailQuery.Data, Option
       return this.heroDetailQuery;
     }
 
-    @SuppressWarnings("unchecked")
+    @SuppressWarnings({"rawtypes", "unchecked"})
     public ResponseFieldMarshaller marshaller() {
       return new ResponseFieldMarshaller() {
         @Override
@@ -206,6 +266,9 @@ public final class HeroDetailQuery implements Query<HeroDetailQuery.Data, Option
     }
   }
 
+  /**
+   * A character from the Star Wars universe
+   */
   public interface HeroDetailQuery1 {
     @NotNull String __typename();
 
@@ -231,15 +294,21 @@ public final class HeroDetailQuery implements Query<HeroDetailQuery.Data, Option
     }
 
     final class Mapper implements ResponseFieldMapper<HeroDetailQuery1> {
+      static final ResponseField[] $responseFields = {
+        ResponseField.forFragment("__typename", "__typename", Arrays.<ResponseField.Condition>asList(
+          ResponseField.Condition.typeCondition(new String[] {"Human"})
+        ))
+      };
+
       final AsHuman.Mapper asHumanFieldMapper = new AsHuman.Mapper();
 
       final AsCharacter.Mapper asCharacterFieldMapper = new AsCharacter.Mapper();
 
       @Override
       public HeroDetailQuery1 map(ResponseReader reader) {
-        final AsHuman asHuman = reader.readConditional(ResponseField.forInlineFragment("__typename", "__typename", Arrays.asList("Human")), new ResponseReader.ConditionalTypeReader<AsHuman>() {
+        final AsHuman asHuman = reader.readFragment($responseFields[0], new ResponseReader.ObjectReader<AsHuman>() {
           @Override
-          public AsHuman read(String conditionalType, ResponseReader reader) {
+          public AsHuman read(ResponseReader reader) {
             return asHumanFieldMapper.map(reader);
           }
         });
@@ -259,6 +328,9 @@ public final class HeroDetailQuery implements Query<HeroDetailQuery.Data, Option
     }
   }
 
+  /**
+   * A character from the Star Wars universe
+   */
   public interface Friend {
     @NotNull String __typename();
 
@@ -270,6 +342,9 @@ public final class HeroDetailQuery implements Query<HeroDetailQuery.Data, Option
     ResponseFieldMarshaller marshaller();
   }
 
+  /**
+   * A humanoid creature from the Star Wars universe
+   */
   public static class AsHuman implements HeroDetailQuery1 {
     static final ResponseField[] $responseFields = {
       ResponseField.forString("__typename", "__typename", null, false, Collections.<ResponseField.Condition>emptyList()),
@@ -325,7 +400,7 @@ public final class HeroDetailQuery implements Query<HeroDetailQuery.Data, Option
       return this.height;
     }
 
-    @SuppressWarnings("unchecked")
+    @SuppressWarnings({"rawtypes", "unchecked"})
     public ResponseFieldMarshaller marshaller() {
       return new ResponseFieldMarshaller() {
         @Override
@@ -415,6 +490,9 @@ public final class HeroDetailQuery implements Query<HeroDetailQuery.Data, Option
     }
   }
 
+  /**
+   * A character from the Star Wars universe
+   */
   public static class Friend1 implements Friend {
     static final ResponseField[] $responseFields = {
       ResponseField.forString("__typename", "__typename", null, false, Collections.<ResponseField.Condition>emptyList()),
@@ -470,7 +548,7 @@ public final class HeroDetailQuery implements Query<HeroDetailQuery.Data, Option
       return this.friends;
     }
 
-    @SuppressWarnings("unchecked")
+    @SuppressWarnings({"rawtypes", "unchecked"})
     public ResponseFieldMarshaller marshaller() {
       return new ResponseFieldMarshaller() {
         @Override
@@ -572,11 +650,13 @@ public final class HeroDetailQuery implements Query<HeroDetailQuery.Data, Option
     }
   }
 
+  /**
+   * A character from the Star Wars universe
+   */
   public static class Friend2 {
     static final ResponseField[] $responseFields = {
       ResponseField.forString("__typename", "__typename", null, false, Collections.<ResponseField.Condition>emptyList()),
-      ResponseField.forFragment("__typename", "__typename", Arrays.asList("Human",
-      "Droid"))
+      ResponseField.forString("__typename", "__typename", null, false, Collections.<ResponseField.Condition>emptyList())
     };
 
     final @NotNull String __typename;
@@ -602,7 +682,7 @@ public final class HeroDetailQuery implements Query<HeroDetailQuery.Data, Option
       return this.fragments;
     }
 
-    @SuppressWarnings("unchecked")
+    @SuppressWarnings({"rawtypes", "unchecked"})
     public ResponseFieldMarshaller marshaller() {
       return new ResponseFieldMarshaller() {
         @Override
@@ -672,10 +752,7 @@ public final class HeroDetailQuery implements Query<HeroDetailQuery.Data, Option
         return new ResponseFieldMarshaller() {
           @Override
           public void marshal(ResponseWriter writer) {
-            final HeroDetails $heroDetails = heroDetails;
-            if ($heroDetails != null) {
-              $heroDetails.marshaller().marshal(writer);
-            }
+            writer.writeFragment(heroDetails.marshaller());
           }
         };
       }
@@ -714,13 +791,22 @@ public final class HeroDetailQuery implements Query<HeroDetailQuery.Data, Option
         return $hashCode;
       }
 
-      public static final class Mapper implements FragmentResponseFieldMapper<Fragments> {
+      public static final class Mapper implements ResponseFieldMapper<Fragments> {
+        static final ResponseField[] $responseFields = {
+          ResponseField.forFragment("__typename", "__typename", Collections.<ResponseField.Condition>emptyList())
+        };
+
         final HeroDetails.Mapper heroDetailsFieldMapper = new HeroDetails.Mapper();
 
         @Override
-        public @NotNull Fragments map(ResponseReader reader, @NotNull String conditionalType) {
-          HeroDetails heroDetails = heroDetailsFieldMapper.map(reader);
-          return new Fragments(Utils.checkNotNull(heroDetails, "heroDetails == null"));
+        public @NotNull Fragments map(ResponseReader reader) {
+          final HeroDetails heroDetails = reader.readFragment($responseFields[0], new ResponseReader.ObjectReader<HeroDetails>() {
+            @Override
+            public HeroDetails read(ResponseReader reader) {
+              return heroDetailsFieldMapper.map(reader);
+            }
+          });
+          return new Fragments(heroDetails);
         }
       }
     }
@@ -731,17 +817,15 @@ public final class HeroDetailQuery implements Query<HeroDetailQuery.Data, Option
       @Override
       public Friend2 map(ResponseReader reader) {
         final String __typename = reader.readString($responseFields[0]);
-        final Fragments fragments = reader.readConditional($responseFields[1], new ResponseReader.ConditionalTypeReader<Fragments>() {
-          @Override
-          public Fragments read(String conditionalType, ResponseReader reader) {
-            return fragmentsFieldMapper.map(reader, conditionalType);
-          }
-        });
+        final Fragments fragments = fragmentsFieldMapper.map(reader);
         return new Friend2(__typename, fragments);
       }
     }
   }
 
+  /**
+   * A character from the Star Wars universe
+   */
   public static class AsCharacter implements HeroDetailQuery1 {
     static final ResponseField[] $responseFields = {
       ResponseField.forString("__typename", "__typename", null, false, Collections.<ResponseField.Condition>emptyList()),
@@ -786,7 +870,7 @@ public final class HeroDetailQuery implements Query<HeroDetailQuery.Data, Option
       return this.friends;
     }
 
-    @SuppressWarnings("unchecked")
+    @SuppressWarnings({"rawtypes", "unchecked"})
     public ResponseFieldMarshaller marshaller() {
       return new ResponseFieldMarshaller() {
         @Override
@@ -870,6 +954,9 @@ public final class HeroDetailQuery implements Query<HeroDetailQuery.Data, Option
     }
   }
 
+  /**
+   * A character from the Star Wars universe
+   */
   public static class Friend3 implements Friend {
     static final ResponseField[] $responseFields = {
       ResponseField.forString("__typename", "__typename", null, false, Collections.<ResponseField.Condition>emptyList()),
@@ -902,7 +989,7 @@ public final class HeroDetailQuery implements Query<HeroDetailQuery.Data, Option
       return this.name;
     }
 
-    @SuppressWarnings("unchecked")
+    @SuppressWarnings({"rawtypes", "unchecked"})
     public ResponseFieldMarshaller marshaller() {
       return new ResponseFieldMarshaller() {
         @Override

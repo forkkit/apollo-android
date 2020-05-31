@@ -5,13 +5,18 @@ import com.apollographql.apollo.ApolloQueryWatcher;
 import com.apollographql.apollo.api.OperationName;
 import com.apollographql.apollo.api.Query;
 import com.apollographql.apollo.api.Response;
+import com.apollographql.apollo.api.ScalarTypeAdapters;
 import com.apollographql.apollo.api.cache.http.HttpCachePolicy;
+import com.apollographql.apollo.api.internal.ApolloLogger;
 import com.apollographql.apollo.cache.CacheHeaders;
 import com.apollographql.apollo.cache.normalized.ApolloStore;
 import com.apollographql.apollo.exception.ApolloException;
 import com.apollographql.apollo.fetcher.ApolloResponseFetchers;
 import com.apollographql.apollo.interceptor.ApolloInterceptor;
-import com.apollographql.apollo.response.ScalarTypeAdapters;
+import com.apollographql.apollo.interceptor.ApolloInterceptorFactory;
+import okhttp3.Call;
+import okhttp3.HttpUrl;
+import org.jetbrains.annotations.NotNull;
 
 import java.util.ArrayList;
 import java.util.Collections;
@@ -19,11 +24,6 @@ import java.util.List;
 import java.util.concurrent.Executor;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicInteger;
-
-import org.jetbrains.annotations.NotNull;
-
-import okhttp3.Call;
-import okhttp3.HttpUrl;
 
 final class QueryReFetcher {
   final ApolloLogger logger;
@@ -53,6 +53,7 @@ final class QueryReFetcher {
           .cacheHeaders(CacheHeaders.NONE)
           .logger(builder.logger)
           .applicationInterceptors(builder.applicationInterceptors)
+          .applicationInterceptorFactories(builder.applicationInterceptorFactories)
           .tracker(builder.callTracker)
           .dispatcher(builder.dispatcher)
           .build());
@@ -124,6 +125,7 @@ final class QueryReFetcher {
     Executor dispatcher;
     ApolloLogger logger;
     List<ApolloInterceptor> applicationInterceptors;
+    List<ApolloInterceptorFactory> applicationInterceptorFactories;
     ApolloCallTracker callTracker;
 
     Builder queries(List<Query> queries) {
@@ -173,6 +175,11 @@ final class QueryReFetcher {
 
     Builder applicationInterceptors(List<ApolloInterceptor> applicationInterceptors) {
       this.applicationInterceptors = applicationInterceptors;
+      return this;
+    }
+
+    Builder applicationInterceptorFactories(List<ApolloInterceptorFactory> applicationInterceptorFactories) {
+      this.applicationInterceptorFactories = applicationInterceptorFactories;
       return this;
     }
 

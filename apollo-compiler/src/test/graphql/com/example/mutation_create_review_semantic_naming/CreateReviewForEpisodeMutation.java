@@ -5,17 +5,22 @@
 //
 package com.example.mutation_create_review_semantic_naming;
 
-import com.apollographql.apollo.api.InputFieldMarshaller;
-import com.apollographql.apollo.api.InputFieldWriter;
 import com.apollographql.apollo.api.Mutation;
 import com.apollographql.apollo.api.Operation;
 import com.apollographql.apollo.api.OperationName;
+import com.apollographql.apollo.api.Response;
 import com.apollographql.apollo.api.ResponseField;
-import com.apollographql.apollo.api.ResponseFieldMapper;
-import com.apollographql.apollo.api.ResponseFieldMarshaller;
-import com.apollographql.apollo.api.ResponseReader;
-import com.apollographql.apollo.api.ResponseWriter;
+import com.apollographql.apollo.api.ScalarTypeAdapters;
+import com.apollographql.apollo.api.internal.InputFieldMarshaller;
+import com.apollographql.apollo.api.internal.InputFieldWriter;
+import com.apollographql.apollo.api.internal.OperationRequestBodyComposer;
 import com.apollographql.apollo.api.internal.Optional;
+import com.apollographql.apollo.api.internal.QueryDocumentMinifier;
+import com.apollographql.apollo.api.internal.ResponseFieldMapper;
+import com.apollographql.apollo.api.internal.ResponseFieldMarshaller;
+import com.apollographql.apollo.api.internal.ResponseReader;
+import com.apollographql.apollo.api.internal.ResponseWriter;
+import com.apollographql.apollo.api.internal.SimpleOperationResponseParser;
 import com.apollographql.apollo.api.internal.UnmodifiableMapBuilder;
 import com.apollographql.apollo.api.internal.Utils;
 import com.example.mutation_create_review_semantic_naming.type.Episode;
@@ -28,19 +33,24 @@ import java.lang.SuppressWarnings;
 import java.util.Collections;
 import java.util.LinkedHashMap;
 import java.util.Map;
+import okio.Buffer;
+import okio.BufferedSource;
+import okio.ByteString;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
 
 public final class CreateReviewForEpisodeMutation implements Mutation<CreateReviewForEpisodeMutation.Data, Optional<CreateReviewForEpisodeMutation.Data>, CreateReviewForEpisodeMutation.Variables> {
-  public static final String OPERATION_ID = "dc312e4edc4258722c5ddb00ad2a85faacd285090336d719a22f65fdc94022c7";
+  public static final String OPERATION_ID = "0cd4b32f15788d426344f5f8d2ee1a3cebb72c167005cb147d2a47761c120a41";
 
-  public static final String QUERY_DOCUMENT = "mutation CreateReviewForEpisode($ep: Episode!, $review: ReviewInput!) {\n"
-      + "  createReview(episode: $ep, review: $review) {\n"
-      + "    __typename\n"
-      + "    stars\n"
-      + "    commentary\n"
-      + "  }\n"
-      + "}";
+  public static final String QUERY_DOCUMENT = QueryDocumentMinifier.minify(
+    "mutation CreateReviewForEpisode($ep: Episode!, $review: ReviewInput!) {\n"
+        + "  createReview(episode: $ep, review: $review) {\n"
+        + "    __typename\n"
+        + "    stars\n"
+        + "    commentary\n"
+        + "  }\n"
+        + "}"
+  );
 
   public static final OperationName OPERATION_NAME = new OperationName() {
     @Override
@@ -89,6 +99,46 @@ public final class CreateReviewForEpisodeMutation implements Mutation<CreateRevi
   @Override
   public OperationName name() {
     return OPERATION_NAME;
+  }
+
+  @Override
+  @NotNull
+  public Response<Optional<CreateReviewForEpisodeMutation.Data>> parse(@NotNull final BufferedSource source,
+      @NotNull final ScalarTypeAdapters scalarTypeAdapters) throws IOException {
+    return SimpleOperationResponseParser.parse(source, this, scalarTypeAdapters);
+  }
+
+  @Override
+  @NotNull
+  public Response<Optional<CreateReviewForEpisodeMutation.Data>> parse(@NotNull final ByteString byteString,
+      @NotNull final ScalarTypeAdapters scalarTypeAdapters) throws IOException {
+    return parse(new Buffer().write(byteString), scalarTypeAdapters);
+  }
+
+  @Override
+  @NotNull
+  public Response<Optional<CreateReviewForEpisodeMutation.Data>> parse(@NotNull final BufferedSource source)
+      throws IOException {
+    return parse(source, ScalarTypeAdapters.DEFAULT);
+  }
+
+  @Override
+  @NotNull
+  public Response<Optional<CreateReviewForEpisodeMutation.Data>> parse(@NotNull final ByteString byteString)
+      throws IOException {
+    return parse(byteString, ScalarTypeAdapters.DEFAULT);
+  }
+
+  @Override
+  @NotNull
+  public ByteString composeRequestBody(@NotNull final ScalarTypeAdapters scalarTypeAdapters) {
+    return OperationRequestBodyComposer.compose(this, false, true, scalarTypeAdapters);
+  }
+
+  @NotNull
+  @Override
+  public ByteString composeRequestBody() {
+    return OperationRequestBodyComposer.compose(this, false, true, ScalarTypeAdapters.DEFAULT);
   }
 
   public static final class Builder {
@@ -155,6 +205,9 @@ public final class CreateReviewForEpisodeMutation implements Mutation<CreateRevi
     }
   }
 
+  /**
+   * Data from the response after executing this GraphQL operation
+   */
   public static class Data implements Operation.Data {
     static final ResponseField[] $responseFields = {
       ResponseField.forObject("createReview", "createReview", new UnmodifiableMapBuilder<String, Object>(2)
@@ -185,7 +238,7 @@ public final class CreateReviewForEpisodeMutation implements Mutation<CreateRevi
       return this.createReview;
     }
 
-    @SuppressWarnings("unchecked")
+    @SuppressWarnings({"rawtypes", "unchecked"})
     public ResponseFieldMarshaller marshaller() {
       return new ResponseFieldMarshaller() {
         @Override
@@ -245,6 +298,9 @@ public final class CreateReviewForEpisodeMutation implements Mutation<CreateRevi
     }
   }
 
+  /**
+   * Represents a review for a movie
+   */
   public static class CreateReview {
     static final ResponseField[] $responseFields = {
       ResponseField.forString("__typename", "__typename", null, false, Collections.<ResponseField.Condition>emptyList()),
@@ -288,7 +344,7 @@ public final class CreateReviewForEpisodeMutation implements Mutation<CreateRevi
       return this.commentary;
     }
 
-    @SuppressWarnings("unchecked")
+    @SuppressWarnings({"rawtypes", "unchecked"})
     public ResponseFieldMarshaller marshaller() {
       return new ResponseFieldMarshaller() {
         @Override

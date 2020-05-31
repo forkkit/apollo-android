@@ -6,17 +6,22 @@
 package com.example.deprecation;
 
 import com.apollographql.apollo.api.Input;
-import com.apollographql.apollo.api.InputFieldMarshaller;
-import com.apollographql.apollo.api.InputFieldWriter;
 import com.apollographql.apollo.api.Operation;
 import com.apollographql.apollo.api.OperationName;
 import com.apollographql.apollo.api.Query;
+import com.apollographql.apollo.api.Response;
 import com.apollographql.apollo.api.ResponseField;
-import com.apollographql.apollo.api.ResponseFieldMapper;
-import com.apollographql.apollo.api.ResponseFieldMarshaller;
-import com.apollographql.apollo.api.ResponseReader;
-import com.apollographql.apollo.api.ResponseWriter;
+import com.apollographql.apollo.api.ScalarTypeAdapters;
+import com.apollographql.apollo.api.internal.InputFieldMarshaller;
+import com.apollographql.apollo.api.internal.InputFieldWriter;
+import com.apollographql.apollo.api.internal.OperationRequestBodyComposer;
 import com.apollographql.apollo.api.internal.Optional;
+import com.apollographql.apollo.api.internal.QueryDocumentMinifier;
+import com.apollographql.apollo.api.internal.ResponseFieldMapper;
+import com.apollographql.apollo.api.internal.ResponseFieldMarshaller;
+import com.apollographql.apollo.api.internal.ResponseReader;
+import com.apollographql.apollo.api.internal.ResponseWriter;
+import com.apollographql.apollo.api.internal.SimpleOperationResponseParser;
 import com.apollographql.apollo.api.internal.UnmodifiableMapBuilder;
 import com.apollographql.apollo.api.internal.Utils;
 import com.example.deprecation.type.Episode;
@@ -29,20 +34,25 @@ import java.lang.SuppressWarnings;
 import java.util.Collections;
 import java.util.LinkedHashMap;
 import java.util.Map;
+import okio.Buffer;
+import okio.BufferedSource;
+import okio.ByteString;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
 
 public final class TestQuery implements Query<TestQuery.Data, Optional<TestQuery.Data>, TestQuery.Variables> {
-  public static final String OPERATION_ID = "786dfe7aa4320ca4657d7f1eb4e87284e942c640add42bd0e3fa07e8a9fb67b6";
+  public static final String OPERATION_ID = "8f4a8c01b4bf0eb76356829f8062621ff66c3b53b6bf92753661cca41ef3ade4";
 
-  public static final String QUERY_DOCUMENT = "query TestQuery($episode: Episode) {\n"
-      + "  hero(episode: $episode) {\n"
-      + "    __typename\n"
-      + "    name\n"
-      + "    deprecated\n"
-      + "    deprecatedBool\n"
-      + "  }\n"
-      + "}";
+  public static final String QUERY_DOCUMENT = QueryDocumentMinifier.minify(
+    "query TestQuery($episode: Episode) {\n"
+        + "  hero(episode: $episode) {\n"
+        + "    __typename\n"
+        + "    name\n"
+        + "    deprecated\n"
+        + "    deprecatedBool\n"
+        + "  }\n"
+        + "}"
+  );
 
   public static final OperationName OPERATION_NAME = new OperationName() {
     @Override
@@ -90,6 +100,53 @@ public final class TestQuery implements Query<TestQuery.Data, Optional<TestQuery
   @Override
   public OperationName name() {
     return OPERATION_NAME;
+  }
+
+  @Override
+  @NotNull
+  public Response<Optional<TestQuery.Data>> parse(@NotNull final BufferedSource source,
+      @NotNull final ScalarTypeAdapters scalarTypeAdapters) throws IOException {
+    return SimpleOperationResponseParser.parse(source, this, scalarTypeAdapters);
+  }
+
+  @Override
+  @NotNull
+  public Response<Optional<TestQuery.Data>> parse(@NotNull final ByteString byteString,
+      @NotNull final ScalarTypeAdapters scalarTypeAdapters) throws IOException {
+    return parse(new Buffer().write(byteString), scalarTypeAdapters);
+  }
+
+  @Override
+  @NotNull
+  public Response<Optional<TestQuery.Data>> parse(@NotNull final BufferedSource source) throws
+      IOException {
+    return parse(source, ScalarTypeAdapters.DEFAULT);
+  }
+
+  @Override
+  @NotNull
+  public Response<Optional<TestQuery.Data>> parse(@NotNull final ByteString byteString) throws
+      IOException {
+    return parse(byteString, ScalarTypeAdapters.DEFAULT);
+  }
+
+  @Override
+  @NotNull
+  public ByteString composeRequestBody(@NotNull final ScalarTypeAdapters scalarTypeAdapters) {
+    return OperationRequestBodyComposer.compose(this, false, true, scalarTypeAdapters);
+  }
+
+  @NotNull
+  @Override
+  public ByteString composeRequestBody() {
+    return OperationRequestBodyComposer.compose(this, false, true, ScalarTypeAdapters.DEFAULT);
+  }
+
+  @Override
+  @NotNull
+  public ByteString composeRequestBody(final boolean autoPersistQueries,
+      final boolean withQueryDocument, @NotNull final ScalarTypeAdapters scalarTypeAdapters) {
+    return OperationRequestBodyComposer.compose(this, autoPersistQueries, withQueryDocument, scalarTypeAdapters);
   }
 
   public static final class Builder {
@@ -147,6 +204,9 @@ public final class TestQuery implements Query<TestQuery.Data, Optional<TestQuery
     }
   }
 
+  /**
+   * Data from the response after executing this GraphQL operation
+   */
   public static class Data implements Operation.Data {
     static final ResponseField[] $responseFields = {
       ResponseField.forObject("hero", "hero", new UnmodifiableMapBuilder<String, Object>(1)
@@ -173,7 +233,7 @@ public final class TestQuery implements Query<TestQuery.Data, Optional<TestQuery
       return this.hero;
     }
 
-    @SuppressWarnings("unchecked")
+    @SuppressWarnings({"rawtypes", "unchecked"})
     public ResponseFieldMarshaller marshaller() {
       return new ResponseFieldMarshaller() {
         @Override
@@ -233,6 +293,9 @@ public final class TestQuery implements Query<TestQuery.Data, Optional<TestQuery
     }
   }
 
+  /**
+   * A character from the Star Wars universe
+   */
   public static class Hero {
     static final ResponseField[] $responseFields = {
       ResponseField.forString("__typename", "__typename", null, false, Collections.<ResponseField.Condition>emptyList()),
@@ -290,7 +353,7 @@ public final class TestQuery implements Query<TestQuery.Data, Optional<TestQuery
       return this.deprecatedBool;
     }
 
-    @SuppressWarnings("unchecked")
+    @SuppressWarnings({"rawtypes", "unchecked"})
     public ResponseFieldMarshaller marshaller() {
       return new ResponseFieldMarshaller() {
         @Override

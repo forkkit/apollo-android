@@ -5,12 +5,14 @@ import com.apollographql.apollo.ApolloQueryCall;
 import com.apollographql.apollo.api.Operation;
 import com.apollographql.apollo.api.OperationName;
 import com.apollographql.apollo.api.Query;
-import com.apollographql.apollo.api.ResponseFieldMapper;
-import com.apollographql.apollo.api.internal.Action;
-import com.apollographql.apollo.api.internal.Optional;
-import com.apollographql.apollo.cache.CacheHeaders;
+import com.apollographql.apollo.api.ScalarTypeAdapters;
 import com.apollographql.apollo.api.cache.http.HttpCache;
 import com.apollographql.apollo.api.cache.http.HttpCachePolicy;
+import com.apollographql.apollo.api.internal.Action;
+import com.apollographql.apollo.api.internal.ApolloLogger;
+import com.apollographql.apollo.api.internal.Optional;
+import com.apollographql.apollo.api.internal.ResponseFieldMapper;
+import com.apollographql.apollo.cache.CacheHeaders;
 import com.apollographql.apollo.cache.normalized.ApolloStore;
 import com.apollographql.apollo.exception.ApolloCanceledException;
 import com.apollographql.apollo.exception.ApolloException;
@@ -20,13 +22,17 @@ import com.apollographql.apollo.exception.ApolloParseException;
 import com.apollographql.apollo.fetcher.ResponseFetcher;
 import com.apollographql.apollo.interceptor.ApolloInterceptor;
 import com.apollographql.apollo.interceptor.ApolloInterceptorChain;
+import com.apollographql.apollo.interceptor.ApolloInterceptorFactory;
 import com.apollographql.apollo.internal.interceptor.ApolloAutoPersistedQueryInterceptor;
 import com.apollographql.apollo.internal.interceptor.ApolloCacheInterceptor;
 import com.apollographql.apollo.internal.interceptor.ApolloParseInterceptor;
 import com.apollographql.apollo.internal.interceptor.ApolloServerInterceptor;
 import com.apollographql.apollo.internal.interceptor.RealApolloInterceptorChain;
 import com.apollographql.apollo.request.RequestHeaders;
-import com.apollographql.apollo.response.ScalarTypeAdapters;
+import okhttp3.Call;
+import okhttp3.HttpUrl;
+import org.jetbrains.annotations.NotNull;
+import org.jetbrains.annotations.Nullable;
 
 import java.util.ArrayList;
 import java.util.Arrays;
@@ -34,12 +40,6 @@ import java.util.Collections;
 import java.util.List;
 import java.util.concurrent.Executor;
 import java.util.concurrent.atomic.AtomicReference;
-
-import org.jetbrains.annotations.NotNull;
-import org.jetbrains.annotations.Nullable;
-
-import okhttp3.Call;
-import okhttp3.HttpUrl;
 
 import static com.apollographql.apollo.api.internal.Utils.checkNotNull;
 import static com.apollographql.apollo.internal.CallState.ACTIVE;
@@ -66,6 +66,7 @@ public final class RealApolloCall<T> implements ApolloQueryCall<T>, ApolloMutati
   final ApolloLogger logger;
   final ApolloCallTracker tracker;
   final List<ApolloInterceptor> applicationInterceptors;
+  final List<ApolloInterceptorFactory> applicationInterceptorFactories;
   final List<OperationName> refetchQueryNames;
   final List<Query> refetchQueries;
   final Optional<QueryReFetcher> queryReFetcher;
@@ -95,6 +96,7 @@ public final class RealApolloCall<T> implements ApolloQueryCall<T>, ApolloMutati
     dispatcher = builder.dispatcher;
     logger = builder.logger;
     applicationInterceptors = builder.applicationInterceptors;
+    applicationInterceptorFactories = builder.applicationInterceptorFactories;
     refetchQueryNames = builder.refetchQueryNames;
     refetchQueries = builder.refetchQueries;
     tracker = builder.tracker;
@@ -113,6 +115,7 @@ public final class RealApolloCall<T> implements ApolloQueryCall<T>, ApolloMutati
           .dispatcher(builder.dispatcher)
           .logger(builder.logger)
           .applicationInterceptors(builder.applicationInterceptors)
+          .applicationInterceptorFactories(builder.applicationInterceptorFactories)
           .callTracker(builder.tracker)
           .build());
     }
@@ -310,6 +313,7 @@ public final class RealApolloCall<T> implements ApolloQueryCall<T>, ApolloMutati
         .dispatcher(dispatcher)
         .logger(logger)
         .applicationInterceptors(applicationInterceptors)
+        .applicationInterceptorFactories(applicationInterceptorFactories)
         .tracker(tracker)
         .refetchQueryNames(refetchQueryNames)
         .refetchQueries(refetchQueries)
@@ -331,7 +335,7 @@ public final class RealApolloCall<T> implements ApolloQueryCall<T>, ApolloMutati
         });
         break;
       case CANCELED:
-        throw new ApolloCanceledException("Call is cancelled.");
+        throw new ApolloCanceledException();
       case TERMINATED:
       case ACTIVE:
         throw new IllegalStateException("Already Executed");
@@ -376,7 +380,13 @@ public final class RealApolloCall<T> implements ApolloQueryCall<T>, ApolloMutati
     HttpCachePolicy.Policy httpCachePolicy = operation instanceof Query ? this.httpCachePolicy : null;
     ResponseFieldMapper responseFieldMapper = responseFieldMapperFactory.create(operation);
 
-    List<ApolloInterceptor> interceptors = new ArrayList<>(applicationInterceptors);
+    List<ApolloInterceptor> interceptors = new ArrayList<>();
+
+    for (ApolloInterceptorFactory factory : applicationInterceptorFactories) {
+      interceptors.add(factory.newInterceptor());
+    }
+    interceptors.addAll(applicationInterceptors);
+
     interceptors.add(responseFetcher.provideInterceptor(logger));
     interceptors.add(new ApolloCacheInterceptor(apolloStore, responseFieldMapper, dispatcher, logger));
     if (operation instanceof Query && enableAutoPersistedQueries) {
@@ -402,10 +412,10 @@ public final class RealApolloCall<T> implements ApolloQueryCall<T>, ApolloMutati
     ResponseFetcher responseFetcher;
     CacheHeaders cacheHeaders;
     RequestHeaders requestHeaders = RequestHeaders.NONE;
-    ApolloInterceptorChain interceptorChain;
     Executor dispatcher;
     ApolloLogger logger;
     List<ApolloInterceptor> applicationInterceptors;
+    List<ApolloInterceptorFactory> applicationInterceptorFactories;
     List<OperationName> refetchQueryNames = emptyList();
     List<Query> refetchQueries = emptyList();
     ApolloCallTracker tracker;
@@ -486,6 +496,11 @@ public final class RealApolloCall<T> implements ApolloQueryCall<T>, ApolloMutati
 
     public Builder<T> applicationInterceptors(List<ApolloInterceptor> applicationInterceptors) {
       this.applicationInterceptors = applicationInterceptors;
+      return this;
+    }
+
+    public Builder<T> applicationInterceptorFactories(List<ApolloInterceptorFactory> applicationInterceptorFactories) {
+      this.applicationInterceptorFactories = applicationInterceptorFactories;
       return this;
     }
 

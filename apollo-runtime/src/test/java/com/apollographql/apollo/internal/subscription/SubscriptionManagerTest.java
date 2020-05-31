@@ -1,16 +1,18 @@
 package com.apollographql.apollo.internal.subscription;
 
+import com.apollographql.apollo.api.CustomTypeAdapter;
 import com.apollographql.apollo.api.Operation;
 import com.apollographql.apollo.api.OperationName;
 import com.apollographql.apollo.api.Response;
-import com.apollographql.apollo.api.ResponseFieldMapper;
-import com.apollographql.apollo.api.ResponseFieldMarshaller;
-import com.apollographql.apollo.api.ResponseReader;
 import com.apollographql.apollo.api.ScalarType;
+import com.apollographql.apollo.api.ScalarTypeAdapters;
 import com.apollographql.apollo.api.Subscription;
+import com.apollographql.apollo.api.internal.ResponseFieldMapper;
+import com.apollographql.apollo.api.internal.ResponseFieldMarshaller;
+import com.apollographql.apollo.api.internal.ResponseReader;
 import com.apollographql.apollo.api.internal.UnmodifiableMapBuilder;
-import com.apollographql.apollo.response.CustomTypeAdapter;
-import com.apollographql.apollo.response.ScalarTypeAdapters;
+import com.apollographql.apollo.cache.normalized.ApolloStore;
+import com.apollographql.apollo.cache.normalized.internal.ResponseNormalizer;
 import com.apollographql.apollo.subscription.OnSubscriptionManagerStateChangeListener;
 import com.apollographql.apollo.subscription.OperationClientMessage;
 import com.apollographql.apollo.subscription.OperationServerMessage;
@@ -18,7 +20,9 @@ import com.apollographql.apollo.subscription.SubscriptionConnectionParams;
 import com.apollographql.apollo.subscription.SubscriptionConnectionParamsProvider;
 import com.apollographql.apollo.subscription.SubscriptionManagerState;
 import com.apollographql.apollo.subscription.SubscriptionTransport;
-
+import kotlin.jvm.functions.Function0;
+import okio.BufferedSource;
+import okio.ByteString;
 import org.jetbrains.annotations.NotNull;
 import org.junit.Before;
 import org.junit.Test;
@@ -26,10 +30,11 @@ import org.junit.Test;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
+import java.util.Map;
+import java.util.UUID;
 import java.util.concurrent.Executor;
 import java.util.concurrent.TimeUnit;
 
-import static com.apollographql.apollo.internal.subscription.RealSubscriptionManager.idForSubscription;
 import static com.google.common.truth.Truth.assertThat;
 
 public class SubscriptionManagerTest {
@@ -42,9 +47,13 @@ public class SubscriptionManagerTest {
 
   @Before public void setUp() {
     subscriptionTransportFactory = new MockSubscriptionTransportFactory();
-    subscriptionManager = new RealSubscriptionManager(new ScalarTypeAdapters(Collections.<ScalarType, CustomTypeAdapter>emptyMap()),
+    subscriptionManager = new RealSubscriptionManager(new ScalarTypeAdapters(Collections.<ScalarType, CustomTypeAdapter<?>>emptyMap()),
         subscriptionTransportFactory, new SubscriptionConnectionParamsProvider.Const(new SubscriptionConnectionParams()),
-        new MockExecutor(), connectionHeartbeatTimeoutMs);
+        new MockExecutor(), connectionHeartbeatTimeoutMs, new Function0<ResponseNormalizer<Map<String, Object>>>() {
+      @Override public ResponseNormalizer<Map<String, Object>> invoke() {
+        return ApolloStore.NO_APOLLO_STORE.networkResponseNormalizer();
+      }
+    }, false);
     subscriptionManager.addOnStateChangeListener(onStateChangeListener);
     assertThat(subscriptionTransportFactory.subscriptionTransport).isNotNull();
     assertThat(subscriptionManager.state).isEqualTo(SubscriptionManagerState.DISCONNECTED);
@@ -64,8 +73,6 @@ public class SubscriptionManagerTest {
     assertThat(subscriptionManager.state).isEqualTo(SubscriptionManagerState.CONNECTING);
 
     assertThat(subscriptionManager.subscriptions).hasSize(2);
-    assertThat(subscriptionManager.subscriptions.get(idForSubscription(subscription1))).isNotNull();
-    assertThat(subscriptionManager.subscriptions.get(idForSubscription(subscription2))).isNotNull();
 
     assertThat(subscriptionManager.timer.tasks).isEmpty();
   }
@@ -84,7 +91,6 @@ public class SubscriptionManagerTest {
     subscriptionTransportFactory.callback.onMessage(new OperationServerMessage.ConnectionAcknowledge());
     assertThat(subscriptionManager.state).isEqualTo(SubscriptionManagerState.ACTIVE);
     assertThat(subscriptionTransportFactory.subscriptionTransport.lastSentMessage).isInstanceOf(OperationClientMessage.Start.class);
-    assertThat(((OperationClientMessage.Start) subscriptionTransportFactory.subscriptionTransport.lastSentMessage).subscriptionId).isEqualTo(idForSubscription(subscription1));
     assertThat(subscriptionManager.timer.tasks).isEmpty();
   }
 
@@ -96,7 +102,6 @@ public class SubscriptionManagerTest {
 
     assertThat(subscriptionManager.subscriptions).isEmpty();
     assertThat(subscriptionTransportFactory.subscriptionTransport.lastSentMessage).isInstanceOf(OperationClientMessage.Stop.class);
-    assertThat(((OperationClientMessage.Stop) subscriptionTransportFactory.subscriptionTransport.lastSentMessage).subscriptionId).isEqualTo(idForSubscription(subscription1));
 
     assertThat(subscriptionManager.timer.tasks).containsKey(RealSubscriptionManager.INACTIVITY_TIMEOUT_TIMER_TASK_ID);
 
@@ -122,7 +127,6 @@ public class SubscriptionManagerTest {
 
     assertThat(subscriptionManager.state).isEqualTo(SubscriptionManagerState.ACTIVE);
     assertThat(subscriptionTransportFactory.subscriptionTransport.lastSentMessage).isInstanceOf(OperationClientMessage.Start.class);
-    assertThat(((OperationClientMessage.Start) subscriptionTransportFactory.subscriptionTransport.lastSentMessage).subscriptionId).isEqualTo(idForSubscription(subscription2));
     assertThat(subscriptionManager.timer.tasks).isEmpty();
   }
 
@@ -162,13 +166,14 @@ public class SubscriptionManagerTest {
     SubscriptionManagerCallbackAdapter<Operation.Data> subscriptionManagerCallback2 = new SubscriptionManagerCallbackAdapter<>();
     subscriptionManager.subscribe(subscription2, subscriptionManagerCallback2);
 
+    final List<UUID> subscriptionIds = new ArrayList<>(subscriptionManager.subscriptions.keySet());
+
     subscriptionTransportFactory.callback.onConnected();
     subscriptionTransportFactory.callback.onMessage(new OperationServerMessage.ConnectionAcknowledge());
-    subscriptionTransportFactory.callback.onMessage(new OperationServerMessage.Complete(idForSubscription(subscription1)));
+    subscriptionTransportFactory.callback.onMessage(new OperationServerMessage.Complete(subscriptionIds.get(0).toString()));
     assertThat(subscriptionManagerCallback1.completed).isTrue();
 
     assertThat(subscriptionManager.subscriptions).hasSize(1);
-    assertThat(subscriptionManager.subscriptions).containsKey(idForSubscription(subscription2));
     assertThat(subscriptionManagerCallback2.completed).isFalse();
   }
 
@@ -178,9 +183,11 @@ public class SubscriptionManagerTest {
     SubscriptionManagerCallbackAdapter<Operation.Data> subscriptionManagerCallback2 = new SubscriptionManagerCallbackAdapter<>();
     subscriptionManager.subscribe(subscription2, subscriptionManagerCallback2);
 
+    final List<UUID> subscriptionIds = new ArrayList<>(subscriptionManager.subscriptions.keySet());
+
     subscriptionTransportFactory.callback.onConnected();
     subscriptionTransportFactory.callback.onMessage(new OperationServerMessage.ConnectionAcknowledge());
-    subscriptionTransportFactory.callback.onMessage(new OperationServerMessage.Error(idForSubscription(subscription1),
+    subscriptionTransportFactory.callback.onMessage(new OperationServerMessage.Error(subscriptionIds.get(0).toString(),
         new UnmodifiableMapBuilder<String, Object>().put("key1", "value1").put("key2", "value2").build()));
 
     assertThat(subscriptionManagerCallback1.error).isInstanceOf(ApolloSubscriptionServerException.class);
@@ -188,7 +195,6 @@ public class SubscriptionManagerTest {
     assertThat(((ApolloSubscriptionServerException) subscriptionManagerCallback1.error).errorPayload).containsEntry("key2", "value2");
 
     assertThat(subscriptionManager.subscriptions).hasSize(1);
-    assertThat(subscriptionManager.subscriptions).containsKey(idForSubscription(subscription2));
     assertThat(subscriptionManagerCallback2.completed).isFalse();
   }
 
@@ -196,9 +202,11 @@ public class SubscriptionManagerTest {
     SubscriptionManagerCallbackAdapter<Operation.Data> subscriptionManagerCallback1 = new SubscriptionManagerCallbackAdapter<>();
     subscriptionManager.subscribe(subscription1, subscriptionManagerCallback1);
 
+    final List<UUID> subscriptionIds = new ArrayList<>(subscriptionManager.subscriptions.keySet());
+
     subscriptionTransportFactory.callback.onConnected();
     subscriptionTransportFactory.callback.onMessage(new OperationServerMessage.ConnectionAcknowledge());
-    subscriptionTransportFactory.callback.onMessage(new OperationServerMessage.Data(idForSubscription(subscription1),
+    subscriptionTransportFactory.callback.onMessage(new OperationServerMessage.Data(subscriptionIds.get(0).toString(),
         Collections.<String, Object>emptyMap()));
 
     assertThat(subscriptionManagerCallback1.response).isNotNull();
@@ -218,7 +226,7 @@ public class SubscriptionManagerTest {
     SubscriptionManagerCallbackAdapter<Operation.Data> subscriptionManagerCallback2 = new SubscriptionManagerCallbackAdapter<>();
     subscriptionManager.subscribe(subscription1, subscriptionManagerCallback2);
 
-    assertThat(subscriptionManagerCallback2.error).hasMessage("Already subscribed");
+    assertThat(subscriptionManagerCallback2.error).isNull();
   }
 
   @Test public void reconnectingAfterHeartbeatTimeout() throws Exception {
@@ -435,17 +443,41 @@ public class SubscriptionManagerTest {
     @NotNull @Override public String operationId() {
       return operationId;
     }
+
+    @NotNull @Override public Response<Data> parse(@NotNull BufferedSource source) {
+      throw new UnsupportedOperationException();
+    }
+
+    @NotNull @Override public Response<Data> parse(@NotNull BufferedSource source, @NotNull ScalarTypeAdapters scalarTypeAdapters) {
+      throw new UnsupportedOperationException();
+    }
+
+    @NotNull @Override public Response parse(@NotNull ByteString byteString) {
+      throw new UnsupportedOperationException();
+    }
+
+    @NotNull @Override public Response parse(@NotNull ByteString byteString, @NotNull ScalarTypeAdapters scalarTypeAdapters) {
+      throw new UnsupportedOperationException();
+    }
+
+    @NotNull @Override public ByteString composeRequestBody(@NotNull ScalarTypeAdapters scalarTypeAdapters) {
+      throw new UnsupportedOperationException();
+    }
+
+    @NotNull @Override public ByteString composeRequestBody() {
+      throw new UnsupportedOperationException();
+    }
   }
 
   private static class SubscriptionManagerCallbackAdapter<T> implements SubscriptionManager.Callback<T> {
-    volatile Response<T> response;
+    volatile SubscriptionResponse<T> response;
     volatile ApolloSubscriptionException error;
     volatile Throwable networkError;
     volatile boolean completed;
     volatile boolean terminated;
     volatile boolean connected;
 
-    @Override public void onResponse(@NotNull Response<T> response) {
+    @Override public void onResponse(@NotNull SubscriptionResponse<T> response) {
       this.response = response;
     }
 

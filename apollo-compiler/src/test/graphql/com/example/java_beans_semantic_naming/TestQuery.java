@@ -5,64 +5,73 @@
 //
 package com.example.java_beans_semantic_naming;
 
-import com.apollographql.apollo.api.FragmentResponseFieldMapper;
 import com.apollographql.apollo.api.Operation;
 import com.apollographql.apollo.api.OperationName;
 import com.apollographql.apollo.api.Query;
+import com.apollographql.apollo.api.Response;
 import com.apollographql.apollo.api.ResponseField;
-import com.apollographql.apollo.api.ResponseFieldMapper;
-import com.apollographql.apollo.api.ResponseFieldMarshaller;
-import com.apollographql.apollo.api.ResponseReader;
-import com.apollographql.apollo.api.ResponseWriter;
+import com.apollographql.apollo.api.ScalarTypeAdapters;
+import com.apollographql.apollo.api.internal.OperationRequestBodyComposer;
 import com.apollographql.apollo.api.internal.Optional;
+import com.apollographql.apollo.api.internal.QueryDocumentMinifier;
+import com.apollographql.apollo.api.internal.ResponseFieldMapper;
+import com.apollographql.apollo.api.internal.ResponseFieldMarshaller;
+import com.apollographql.apollo.api.internal.ResponseReader;
+import com.apollographql.apollo.api.internal.ResponseWriter;
+import com.apollographql.apollo.api.internal.SimpleOperationResponseParser;
 import com.apollographql.apollo.api.internal.Utils;
 import com.example.java_beans_semantic_naming.fragment.HeroDetails;
 import com.example.java_beans_semantic_naming.type.Episode;
+import java.io.IOException;
 import java.lang.Object;
 import java.lang.Override;
 import java.lang.String;
 import java.lang.SuppressWarnings;
-import java.util.Arrays;
 import java.util.Collections;
 import java.util.List;
+import okio.Buffer;
+import okio.BufferedSource;
+import okio.ByteString;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
 
 public final class TestQuery implements Query<TestQuery.Data, Optional<TestQuery.Data>, Operation.Variables> {
-  public static final String OPERATION_ID = "4f3cddab484b815b0c6e7999f362c5585f16fcde1011110fc3ae068f71614072";
+  public static final String OPERATION_ID = "a2bc6502baa27d33261b6be530fcaecea248e26e4522c359e8dc6c62c10cafdc";
 
-  public static final String QUERY_DOCUMENT = "query TestQuery {\n"
-      + "  hero {\n"
-      + "    __typename\n"
-      + "    name\n"
-      + "    ...HeroDetails\n"
-      + "    appearsIn\n"
-      + "  }\n"
-      + "}\n"
-      + "fragment HeroDetails on Character {\n"
-      + "  __typename\n"
-      + "  name\n"
-      + "  friendsConnection {\n"
-      + "    __typename\n"
-      + "    totalCount\n"
-      + "    edges {\n"
-      + "      __typename\n"
-      + "      node {\n"
-      + "        __typename\n"
-      + "        name\n"
-      + "      }\n"
-      + "    }\n"
-      + "    pageInfo {\n"
-      + "      __typename\n"
-      + "      hasNextPage\n"
-      + "    }\n"
-      + "    isEmpty\n"
-      + "  }\n"
-      + "  ... on Droid {\n"
-      + "    name\n"
-      + "    primaryFunction\n"
-      + "  }\n"
-      + "}";
+  public static final String QUERY_DOCUMENT = QueryDocumentMinifier.minify(
+    "query TestQuery {\n"
+        + "  hero {\n"
+        + "    __typename\n"
+        + "    name\n"
+        + "    ...HeroDetails\n"
+        + "    appearsIn\n"
+        + "  }\n"
+        + "}\n"
+        + "fragment HeroDetails on Character {\n"
+        + "  __typename\n"
+        + "  name\n"
+        + "  friendsConnection {\n"
+        + "    __typename\n"
+        + "    totalCount\n"
+        + "    edges {\n"
+        + "      __typename\n"
+        + "      node {\n"
+        + "        __typename\n"
+        + "        name\n"
+        + "      }\n"
+        + "    }\n"
+        + "    pageInfo {\n"
+        + "      __typename\n"
+        + "      hasNextPage\n"
+        + "    }\n"
+        + "    isEmpty\n"
+        + "  }\n"
+        + "  ... on Droid {\n"
+        + "    name\n"
+        + "    primaryFunction\n"
+        + "  }\n"
+        + "}"
+  );
 
   public static final OperationName OPERATION_NAME = new OperationName() {
     @Override
@@ -111,6 +120,53 @@ public final class TestQuery implements Query<TestQuery.Data, Optional<TestQuery
     return OPERATION_NAME;
   }
 
+  @Override
+  @NotNull
+  public Response<Optional<TestQuery.Data>> parse(@NotNull final BufferedSource source,
+      @NotNull final ScalarTypeAdapters scalarTypeAdapters) throws IOException {
+    return SimpleOperationResponseParser.parse(source, this, scalarTypeAdapters);
+  }
+
+  @Override
+  @NotNull
+  public Response<Optional<TestQuery.Data>> parse(@NotNull final ByteString byteString,
+      @NotNull final ScalarTypeAdapters scalarTypeAdapters) throws IOException {
+    return parse(new Buffer().write(byteString), scalarTypeAdapters);
+  }
+
+  @Override
+  @NotNull
+  public Response<Optional<TestQuery.Data>> parse(@NotNull final BufferedSource source) throws
+      IOException {
+    return parse(source, ScalarTypeAdapters.DEFAULT);
+  }
+
+  @Override
+  @NotNull
+  public Response<Optional<TestQuery.Data>> parse(@NotNull final ByteString byteString) throws
+      IOException {
+    return parse(byteString, ScalarTypeAdapters.DEFAULT);
+  }
+
+  @Override
+  @NotNull
+  public ByteString composeRequestBody(@NotNull final ScalarTypeAdapters scalarTypeAdapters) {
+    return OperationRequestBodyComposer.compose(this, false, true, scalarTypeAdapters);
+  }
+
+  @NotNull
+  @Override
+  public ByteString composeRequestBody() {
+    return OperationRequestBodyComposer.compose(this, false, true, ScalarTypeAdapters.DEFAULT);
+  }
+
+  @Override
+  @NotNull
+  public ByteString composeRequestBody(final boolean autoPersistQueries,
+      final boolean withQueryDocument, @NotNull final ScalarTypeAdapters scalarTypeAdapters) {
+    return OperationRequestBodyComposer.compose(this, autoPersistQueries, withQueryDocument, scalarTypeAdapters);
+  }
+
   public static final class Builder {
     Builder() {
     }
@@ -120,6 +176,9 @@ public final class TestQuery implements Query<TestQuery.Data, Optional<TestQuery
     }
   }
 
+  /**
+   * Data from the response after executing this GraphQL operation
+   */
   public static class Data implements Operation.Data {
     static final ResponseField[] $responseFields = {
       ResponseField.forObject("hero", "hero", null, true, Collections.<ResponseField.Condition>emptyList())
@@ -141,7 +200,7 @@ public final class TestQuery implements Query<TestQuery.Data, Optional<TestQuery
       return this.hero;
     }
 
-    @SuppressWarnings("unchecked")
+    @SuppressWarnings({"rawtypes", "unchecked"})
     public ResponseFieldMarshaller marshaller() {
       return new ResponseFieldMarshaller() {
         @Override
@@ -201,13 +260,15 @@ public final class TestQuery implements Query<TestQuery.Data, Optional<TestQuery
     }
   }
 
+  /**
+   * A character from the Star Wars universe
+   */
   public static class Hero {
     static final ResponseField[] $responseFields = {
       ResponseField.forString("__typename", "__typename", null, false, Collections.<ResponseField.Condition>emptyList()),
       ResponseField.forString("name", "name", null, false, Collections.<ResponseField.Condition>emptyList()),
       ResponseField.forList("appearsIn", "appearsIn", null, false, Collections.<ResponseField.Condition>emptyList()),
-      ResponseField.forFragment("__typename", "__typename", Arrays.asList("Human",
-      "Droid"))
+      ResponseField.forString("__typename", "__typename", null, false, Collections.<ResponseField.Condition>emptyList())
     };
 
     final @NotNull String __typename;
@@ -254,7 +315,7 @@ public final class TestQuery implements Query<TestQuery.Data, Optional<TestQuery
       return this.fragments;
     }
 
-    @SuppressWarnings("unchecked")
+    @SuppressWarnings({"rawtypes", "unchecked"})
     public ResponseFieldMarshaller marshaller() {
       return new ResponseFieldMarshaller() {
         @Override
@@ -341,10 +402,7 @@ public final class TestQuery implements Query<TestQuery.Data, Optional<TestQuery
         return new ResponseFieldMarshaller() {
           @Override
           public void marshal(ResponseWriter writer) {
-            final HeroDetails $heroDetails = heroDetails;
-            if ($heroDetails != null) {
-              $heroDetails.marshaller().marshal(writer);
-            }
+            writer.writeFragment(heroDetails.marshaller());
           }
         };
       }
@@ -383,13 +441,22 @@ public final class TestQuery implements Query<TestQuery.Data, Optional<TestQuery
         return $hashCode;
       }
 
-      public static final class Mapper implements FragmentResponseFieldMapper<Fragments> {
+      public static final class Mapper implements ResponseFieldMapper<Fragments> {
+        static final ResponseField[] $responseFields = {
+          ResponseField.forFragment("__typename", "__typename", Collections.<ResponseField.Condition>emptyList())
+        };
+
         final HeroDetails.Mapper heroDetailsFieldMapper = new HeroDetails.Mapper();
 
         @Override
-        public @NotNull Fragments map(ResponseReader reader, @NotNull String conditionalType) {
-          HeroDetails heroDetails = heroDetailsFieldMapper.map(reader);
-          return new Fragments(Utils.checkNotNull(heroDetails, "heroDetails == null"));
+        public @NotNull Fragments map(ResponseReader reader) {
+          final HeroDetails heroDetails = reader.readFragment($responseFields[0], new ResponseReader.ObjectReader<HeroDetails>() {
+            @Override
+            public HeroDetails read(ResponseReader reader) {
+              return heroDetailsFieldMapper.map(reader);
+            }
+          });
+          return new Fragments(heroDetails);
         }
       }
     }
@@ -407,12 +474,7 @@ public final class TestQuery implements Query<TestQuery.Data, Optional<TestQuery
             return Episode.safeValueOf(listItemReader.readString());
           }
         });
-        final Fragments fragments = reader.readConditional($responseFields[3], new ResponseReader.ConditionalTypeReader<Fragments>() {
-          @Override
-          public Fragments read(String conditionalType, ResponseReader reader) {
-            return fragmentsFieldMapper.map(reader, conditionalType);
-          }
-        });
+        final Fragments fragments = fragmentsFieldMapper.map(reader);
         return new Hero(__typename, name, appearsIn, fragments);
       }
     }
